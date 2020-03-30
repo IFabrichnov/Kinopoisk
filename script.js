@@ -1,5 +1,8 @@
 const searchForm = document.querySelector('#search-form');
 const movie = document.querySelector('#movies');
+//начало url для обложки
+const urlPoster = 'https://image.tmdb.org/t/p/w500';
+
 
 function apiSearch(e) {
   e.preventDefault();
@@ -8,36 +11,33 @@ function apiSearch(e) {
   const searchText = document.querySelector('.form-control').value;
   //api
   const server = 'https://api.themoviedb.org/3/search/multi?api_key=54a1290145164c615ee7a1c5c2aa5ccd&language=ru&query=' + searchText;
-  requestApi('GET', server);
-}
+  movie.innerHTML = 'Загрузка';
 
-searchForm.addEventListener('submit', apiSearch);
-
-//функция которая обращается к серверу
-function requestApi(method, url) {
-  const request = new XMLHttpRequest();
-  request.open(method, url);
-  //отсылаем запрос
-  request.send();
-  //ожидаем от сервера ответ
-  request.addEventListener('readystatechange', () => {
-    if (request.readyState !== 4) return;
-
-    if (request.status !== 200) {
-      console.log('error: '+request.status);
-      return;
+  fetch(server).then(function (value) {
+    if (value.status !== 200) {
+      return Promise.reject(value);
     }
-    //распарсим json в объект
-    const output = JSON.parse(request.responseText);
+    return value.json();
+  }).then(function (output) {
+
 
     let inner = '';
     //получаем названия фильмов или сериалов и добавляем в верстку
     output.results.forEach(function (item) {
       let nameItem = item.name || item.title;
-      inner += '<div class="col-3">' + nameItem + '</div>';
+      inner += `
+         <div class="col-12 col-md-4 col-xl-3 item">
+         <img src="${urlPoster + item.poster_path}" alt="${nameItem}">
+         <h5>${nameItem}</h5>
+         </div> 
+      `;
     });
     //в контейнер movie передаем данные о фильме
     movie.innerHTML =  inner;
-
+  }).catch(function (reason) {
+    movie.innerHTML = 'Упс, что-то пошло не так!';
+    console.error('error: ' + reason.status);
   });
 }
+
+searchForm.addEventListener('submit', apiSearch);
