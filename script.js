@@ -17,7 +17,7 @@ function apiSearch(e) {
 
   fetch('https://api.themoviedb.org/3/search/multi?api_key=54a1290145164c615ee7a1c5c2aa5ccd&language=ru&query=' + searchText).then(function (value) {
     if (value.status !== 200) {
-      return Promise.reject(value);
+      return Promise.reject(new Error(value.status));
     }
     return value.json();
   }).then(function (output) {
@@ -77,17 +77,23 @@ function showInfo() {
   } else {
     movie.innerHTML = '<h2 class="col-12 text-center text-danger">Произошла ошибка, повторите позже.</h2>';
   }
+
+  const typeMedia = this.dataset.type;
+  const idMedia = this.dataset.id;
+
   fetch(url).then(function (value) {
     if (value.status !== 200) {
-      return Promise.reject(value);
+      return Promise.reject(new Error(value.status));
     }
     return value.json();
   }).then(function (output) {
     console.log(output);
+    //создаем заглушку постер, на случай если у фильма нет обложки
+    const poster = output.poster_path ? urlPoster + output.poster_path : './img/poster.jpg';
     movie.innerHTML = `
     <h4 class="col-12 text-center text-info">${output.name || output.title}</h4>
     <div class="col-4">
-        <img src="${urlPoster + output.poster_path}" alt="${output.name || output.title}">
+        <img src="${poster}" class="poster_in_file" alt="${output.name || output.title}">
         ${(output.homepage) ? `<p class="text-center"> <a href="${output.homepage}"  target="_blank">Официальная страница</a> </p>` : ''} 
         ${(output.imdb_id) ? `<p class="text-center"> <a href="https://imdb.com/title/${output.imdb_id}" target="_blank">Страница на IMDB</a> </p>` : ''} 
     </div>
@@ -99,11 +105,17 @@ function showInfo() {
         ${(output.last_episode_to_air) ? `<p>${output.number_of_seasons} сезон(ов) ${output.last_episode_to_air.episode_number} серий вышло</p>` : ''}
         
         <p>Описание: ${output.overview} </p>
+        
+        <br>
+        
+        <div class="youtube"></div>
     </div>
     `;
+    //выводим трейлер
+    getVideo(typeMedia,idMedia);
   }).catch(function (reason) {
     movie.innerHTML = 'Упс, что-то пошло не так!';
-    console.error('error: ' + reason.status);
+    console.error(reason || reason.status);
   });
 }
 
@@ -112,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
   fetch('https://api.themoviedb.org/3/trending/all/week?api_key=54a1290145164c615ee7a1c5c2aa5ccd&language=ru')
     .then(function (value) {
     if (value.status !== 200) {
-      return Promise.reject(value);
+      return Promise.reject(new Error(value.status));
     }
     return value.json();
   }).then(function (output) {
@@ -140,3 +152,32 @@ document.addEventListener('DOMContentLoaded', function () {
     console.error('error: ' + reason.status);
   });
 });
+
+//функция вывода видео
+function getVideo(type, id) {
+  let youtube = movie.querySelector('.youtube');
+
+  fetch(`https://api.themoviedb.org/3/${type}/${id}/videos?api_key=54a1290145164c615ee7a1c5c2aa5ccd&language=ru`)
+    .then((value) => {
+      if (value.status !== 200) {
+        return Promise.reject(new Error(value.status));
+      }
+      return value.json();
+    }).then((output)=> {
+    let videoFrame = '<h5 class="text-info">Трейлеры:</h5>';
+    //делаем проверку на наличие трейлера
+    if(output.results.length === 0) {
+      videoFrame = '<p>К сожалению трейлер отсутствует.</p>';
+    }
+
+    //перебираем трейлеры и выводим их
+    output.results.forEach((item)=>{
+      videoFrame += '<iframe width="560" height="315" src="https://www.youtube.com/embed/'+ item.key +'" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+    });
+
+    youtube.innerHTML = videoFrame;
+  }).catch((reason) => {
+    youtube.innerHTML = 'Видео отсутствует!';
+    console.error('error: ' + reason.status);
+  });
+}
